@@ -85,6 +85,7 @@ ini_set('display_errors', "On");
 	<title>ひとこと掲示板</title>
 
 	<link rel="stylesheet" href="style.css" />
+	<link href="https://use.fontawesome.com/releases/v5.6.1/css/all.css" rel="stylesheet">
 </head>
 
 <body>
@@ -115,6 +116,26 @@ ini_set('display_errors', "On");
 			<p>
 			<?php echo makeLink(h($post['message']));?><span class="name">（<?php echo h($post['name']); ?>）</span>
 			[<a href="index.php?res=<?php echo h($post['id']); ?> ">Re</a>]
+			<?php 
+			//いいねの管理
+			$likes = $db->prepare('SELECT COUNT(*) AS cnt FROM like_counts WHERE like_members_id=? && posts_id=?');
+			$likes->execute(array($_SESSION['id'], $post['id']));
+			$like = $likes->fetch();
+
+			$like_counts = $db->prepare('SELECT COUNT(*) AS cnt FROM like_counts WHERE posts_id=?');
+			$like_counts->execute(array($post['id']));
+			$like_count = $like_counts->fetch();
+
+			if($like['cnt'] > 0): 
+			?>
+				[<a href="like.php?id=<?php echo h($post['id']) ?>">
+				<i class="fas fa-heart"></i><?php echo($like_count['cnt']); ?>
+				</a>]
+			<?php else: ?>
+				[<a href="like.php?id=<?php echo h($post['id']) ?>">
+				<i class="far fa-heart"></i><?php echo($like_count['cnt']); ?>
+				</a>]
+			<?php endif; ?>
 			</p>
 			<p class="day"><a href="view.php?id=<?php echo h($post['id']); ?> "><?php echo h($post['created']); ?></a>
 			<?php
