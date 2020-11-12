@@ -1,4 +1,6 @@
 <?php
+// エラーを出力する
+ini_set('display_errors', "On");
 require('dbconnect.php');
 session_start();
 
@@ -16,22 +18,25 @@ if (isset($_SESSION['id']) && $_SESSION['time'] + 3600 > time()) {
 
 //投稿を記録する
 if (!empty($_POST)) {
+	printf("aaa");
     if ($_POST['message'] != '') {
-        $message = $db->prepare('INSERT INTO posts SET member_id=?, message=?, reply_post_id=?, created=NOW()');
-        $message->execute(array(
+        $message = $db->prepare('INSERT INTO posts SET member_id=?, message=?, reply_post_id=? , created=NOW()');
+        $ret = $message->execute(array(
             $member['id'],
 			$_POST['message'],
 			$_POST['reply_post_id']
-        ));
+		));
 
-        header('Location: index.php'); exit();
+		header('Location: index.php'); 
+		exit();
     }
 }
 
 //投稿を取得する
-$page = $_REQUEST['page'];
-if ($page == '') {
-	$page = 1;
+if(isset($_REQUEST['page'])){
+	$page = $_REQUEST['page'];
+} else {
+	$page =1;
 }
 $page = max($page, 1);
 
@@ -71,10 +76,6 @@ function makeLink($value) {
 }
 ?>
 
-<?php
-// エラーを出力する
-ini_set('display_errors', "On");
-?>
 
 <!DOCTYPE html>
 <html lang="ja">
@@ -95,13 +96,12 @@ ini_set('display_errors', "On");
     </div>
     <div id="content">
 		<div style="texi-align: right"><a href="logout.php">ログアウト</a></div>
-		<form action="" method="post">
+		<form action="index.php" method="post">
 		<dl>
 			<dt><?php echo h($member['name']); ?>さん、メッセージをどうぞ</dt>
 		<dd>
 		<textarea name="message" cols="50" rows="5"><?php echo h($message); ?></textarea>
-		<input type="hidden" name="reply_post_id" value="<?php echo h($_REQUEST['res']); ?>">
-		</dd>
+		<input type="hidden" name="reply_post_id" value="<?php if(isset($_REQUEST['res'])){ echo h($_REQUEST['res']);} else {echo 0;};  ?>">		</dd>
 		</dl>
 		<div>
 		<input type="submit" value="投稿する" />
