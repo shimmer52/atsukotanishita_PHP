@@ -18,9 +18,8 @@ if (isset($_SESSION['id']) && $_SESSION['time'] + 3600 > time()) {
 
 //投稿を記録する
 if (!empty($_POST)) {
-	printf("aaa");
     if ($_POST['message'] != '') {
-        $message = $db->prepare('INSERT INTO posts SET member_id=?, message=?, reply_post_id=? , created=NOW()');
+        $message = $db->prepare('INSERT INTO posts SET member_id=?, message=?, reply_post_id=?, created=NOW()');
         $ret = $message->execute(array(
             $member['id'],
 			$_POST['message'],
@@ -48,7 +47,7 @@ $page = min($page, $maxPage);
 
 $start = ($page - 1)*5;
 
-$posts = $db->prepare('SELECT m.name, m.picture, p.* FROM members m, posts p WHERE m.id=p.member_id ORDER BY p.created DESC LIMIT ?, 5');
+$posts = $db->prepare('SELECT m.name, m.picture, p.* FROM members m, posts p WHERE m.id=p.member_id ORDER BY p.modified DESC LIMIT ?, 5');
 $posts->bindParam(1, $start, PDO::PARAM_INT);
 $posts->execute();
 
@@ -112,8 +111,25 @@ function makeLink($value) {
 		foreach ($posts as $post):
 		?>
 		<div class="msg">
-			<img src="member_picture/<?php echo h($post['picture']); ?>" width="48" height="48" alt="<?php echo h($post['name']); ?>" />
+			<?php
+			//リツイートの場合
+			$rt_ids = $db->prepare('SELECT m.name, p.rt_post_id FROM members m, posts p WHERE m.id=p.rt_member_id && p.id=?');
+			$rt_ids->execute(array($post['id']));
+			$rt_id = $rt_ids->fetch();
+			if(isset($rt_id['rt_post_id'])){
+				$post['id']=$rt_id['rt_post_id'];
+			}
+			?>
+			<img src="member_picture/<?php echo h($post['picture']); ?>" width="52" height="52" alt="<?php echo h($post['name']); ?>" />
 			<p>
+			<div style="color:#999; font-size:13px;">
+			<?php
+			//リツイート者の表示
+			if($post['rt_member_id'] > 0){
+				echo "{$rt_id['name']}さんがリツイート<br>";
+			}
+			?>
+			</div>
 			<?php echo makeLink(h($post['message']));?><span class="name">（<?php echo h($post['name']); ?>）</span>
 			[<a href="index.php?res=<?php echo h($post['id']); ?> ">Re</a>]
 			<?php 
@@ -136,6 +152,18 @@ function makeLink($value) {
 				<i class="far fa-heart"></i><?php echo($like_count['cnt']); ?>
 				</a>]
 			<?php endif; ?>
+			[<a href="retweet.php?id=<?php echo($post['id']); ?>">
+				RT
+				<?php 
+					//リツイートの件数
+					$rt_counts = $db->prepare('SELECT COUNT(*) AS cnt FROM posts WHERE rt_post_id=?');
+					$rt_counts->execute(array($post['id']));
+					$rt_count = $rt_counts->fetch();
+					if($rt_count['cnt'] > 0){
+						echo("({$rt_count['cnt']})");
+					}
+				?>
+			</a>]
 			</p>
 			<p class="day"><a href="view.php?id=<?php echo h($post['id']); ?> "><?php echo h($post['created']); ?></a>
 			<?php
