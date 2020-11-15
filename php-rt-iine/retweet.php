@@ -3,7 +3,12 @@ session_start();
 require('dbconnect.php');
 
 if(isset($_SESSION['id'])) {
-    $id = $_REQUEST['id'];
+    //REQUEST['id]が数字かどうか確認する
+    if(preg_match('/^[0-9]+$/',$_REQUEST['id'])){
+        $id = $_REQUEST['id'];
+    } else {
+        header('Location: index.php'); exit();
+    }
 
     //投稿を取得する
     $messages = $db->prepare('SELECT * FROM posts WHERE id=?');
@@ -35,5 +40,3 @@ if(isset($_SESSION['id'])) {
 }
 
 header('Location: index.php'); exit();
-
-?>

@@ -5,37 +5,38 @@ require('dbconnect.php');
 session_start();
 
 if (isset($_SESSION['id']) && $_SESSION['time'] + 3600 > time()) {
-    //ログインしている
-    $_SESSION['time'] = time();
+	//ログインしている
+	$_SESSION['time'] = time();
 
-    $members = $db->prepare('SELECT * FROM members WHERE id=?');
-    $members->execute(array($_SESSION['id']));
-    $member = $members->fetch();
+	$members = $db->prepare('SELECT * FROM members WHERE id=?');
+	$members->execute(array($_SESSION['id']));
+	$member = $members->fetch();
 } else {
-    //ログインしていない
-    header('Location: login.php'); exit();
+	//ログインしていない
+	header('Location: login.php');
+	exit();
 }
 
 //投稿を記録する
 if (!empty($_POST)) {
-    if ($_POST['message'] != '') {
-        $message = $db->prepare('INSERT INTO posts SET member_id=?, message=?, reply_post_id=?, created=NOW()');
-        $ret = $message->execute(array(
-            $member['id'],
+	if ($_POST['message'] !== '') {
+		$message = $db->prepare('INSERT INTO posts SET member_id=?, message=?, reply_post_id=?, created=NOW()');
+		$ret = $message->execute(array(
+			$member['id'],
 			$_POST['message'],
 			$_POST['reply_post_id']
 		));
 
-		header('Location: index.php'); 
+		header('Location: index.php');
 		exit();
-    }
+	}
 }
 
 //投稿を取得する
-if(isset($_REQUEST['page'])){
+if (isset($_REQUEST['page'])) {
 	$page = $_REQUEST['page'];
 } else {
-	$page =1;
+	$page = 1;
 }
 $page = max($page, 1);
 
@@ -45,7 +46,7 @@ $cnt = $counts->fetch();
 $maxPage = ceil($cnt['cnt'] / 5);
 $page = min($page, $maxPage);
 
-$start = ($page - 1)*5;
+$start = ($page - 1) * 5;
 
 $posts = $db->prepare('SELECT m.name, m.picture, p.* FROM members m, posts p WHERE m.id=p.member_id ORDER BY p.modified DESC LIMIT ?, 5');
 $posts->bindParam(1, $start, PDO::PARAM_INT);
@@ -53,7 +54,7 @@ $posts->execute();
 
 
 //返信の場合
-if(isset($_REQUEST['res'])) {
+if (isset($_REQUEST['res'])) {
 	$response = $db->prepare('SELECT m.name, m.picture, p.* FROM members m, posts p WHERE m.id=p.member_id AND p.id=? ORDER BY p.created DESC');
 	$response->execute(array($_REQUEST['res']));
 
@@ -65,12 +66,14 @@ if(isset($_REQUEST['res'])) {
 
 
 //htmlspecialcharsのショートカット
-function h($value) {
+function h($value)
+{
 	return htmlspecialchars($value, ENT_QUOTES);
 }
 
 //本文内のURLにリンクを設定します
-function makeLink($value) {
+function makeLink($value)
+{
 	return mb_ereg_replace("(https?)(://[[:alnum:]\+\$\;\?\.%,!#~*/:@&=_-]+)", '<a href="\1\2">\1\2</a>', $value);
 }
 ?>
@@ -78,6 +81,7 @@ function makeLink($value) {
 
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -89,129 +93,134 @@ function makeLink($value) {
 </head>
 
 <body>
-<div id="wrap">
-    <div id="head">
-        <h1>ひとこと掲示板</h1>
-    </div>
-    <div id="content">
-		<div style="texi-align: right"><a href="logout.php">ログアウト</a></div>
-		<form action="index.php" method="post">
-		<dl>
-			<dt><?php echo h($member['name']); ?>さん、メッセージをどうぞ</dt>
-		<dd>
-		<textarea name="message" cols="50" rows="5"><?php echo h($message); ?></textarea>
-		<input type="hidden" name="reply_post_id" value="<?php if(isset($_REQUEST['res'])){ echo h($_REQUEST['res']);} else {echo 0;};  ?>">		</dd>
-		</dl>
-		<div>
-		<input type="submit" value="投稿する" />
+	<div id="wrap">
+		<div id="head">
+			<h1>ひとこと掲示板</h1>
 		</div>
-		</form>
+		<div id="content">
+			<div style="text-align: right"><a href="logout.php">ログアウト</a></div>
+			<form action="index.php" method="post">
+				<dl>
+					<dt><?php echo h($member['name']); ?>さん、メッセージをどうぞ</dt>
+					<dd>
+						<textarea name="message" cols="50" rows="5"><?php echo h($message); ?></textarea>
+						<input type="hidden" name="reply_post_id" value="<?php if (isset($_REQUEST['res'])) {
+																				echo h($_REQUEST['res']);
+																			} else {
+																				echo 0;
+																			};  ?>"> </dd>
+				</dl>
+				<div>
+					<input type="submit" value="投稿する" />
+				</div>
+			</form>
 
-		<?php
-		foreach ($posts as $post):
-		?>
-		<div class="msg">
 			<?php
-			//リツイートの場合
-			$rt_ids = $db->prepare('SELECT m.name, p.rt_post_id FROM members m, posts p WHERE m.id=p.rt_member_id && p.id=?');
-			$rt_ids->execute(array($post['id']));
-			$rt_id = $rt_ids->fetch();
-			if(isset($rt_id['rt_post_id'])){
-				$post['id']=$rt_id['rt_post_id'];
-			}
+			foreach ($posts as $post) :
 			?>
-			<img src="member_picture/<?php echo h($post['picture']); ?>" width="52" height="52" alt="<?php echo h($post['name']); ?>" />
-			<p>
-			<div style="color:#999; font-size:13px;">
-			<?php
-			//リツイート者の表示
-			if($post['rt_member_id'] > 0){
-				echo "{$rt_id['name']}さんがリツイート<br>";
-			}
-			?>
-			</div>
-			<?php echo makeLink(h($post['message']));?><span class="name">（<?php echo h($post['name']); ?>）</span>
-			[<a href="index.php?res=<?php echo h($post['id']); ?> ">Re</a>]
-			<?php 
-			//いいねの管理
-			$likes = $db->prepare('SELECT COUNT(*) AS cnt FROM like_counts WHERE like_members_id=? && posts_id=?');
-			$likes->execute(array($_SESSION['id'], $post['id']));
-			$like = $likes->fetch();
-
-			$like_counts = $db->prepare('SELECT COUNT(*) AS cnt FROM like_counts WHERE posts_id=?');
-			$like_counts->execute(array($post['id']));
-			$like_count = $like_counts->fetch();
-
-			if($like['cnt'] > 0): 
-			?>
-				[<a href="like.php?id=<?php echo h($post['id']) ?>">
-				<i class="fas fa-heart"></i><?php echo($like_count['cnt']); ?>
-				</a>]
-			<?php else: ?>
-				[<a href="like.php?id=<?php echo h($post['id']) ?>">
-				<i class="far fa-heart"></i><?php echo($like_count['cnt']); ?>
-				</a>]
-			<?php endif; ?>
-			[<a href="retweet.php?id=<?php echo($post['id']); ?>">
-				RT
-				<?php 
-					//リツイートの件数
-					$rt_counts = $db->prepare('SELECT COUNT(*) AS cnt FROM posts WHERE rt_post_id=?');
-					$rt_counts->execute(array($post['id']));
-					$rt_count = $rt_counts->fetch();
-					if($rt_count['cnt'] > 0){
-						echo("({$rt_count['cnt']})");
+				<div class="msg">
+					<?php
+					//リツイートの場合
+					$rt_ids = $db->prepare('SELECT m.name, p.rt_post_id FROM members m, posts p WHERE m.id=p.rt_member_id && p.id=?');
+					$rt_ids->execute(array($post['id']));
+					$rt_id = $rt_ids->fetch();
+					if (isset($rt_id['rt_post_id'])) {
+						$post['id'] = $rt_id['rt_post_id'];
 					}
-				?>
-			</a>]
-			</p>
-			<p class="day"><a href="view.php?id=<?php echo h($post['id']); ?> "><?php echo h($post['created']); ?></a>
+					?>
+					<img src="member_picture/<?php echo h($post['picture']); ?>" width="52" height="52" alt="<?php echo h($post['name']); ?>" />
+					<p>
+						<div style="color:#999; font-size:13px;">
+							<?php
+							//リツイート者の表示
+							if ($post['rt_member_id'] > 0) {
+								echo "{$rt_id['name']}さんがリツイート<br>";
+							}
+							?>
+						</div>
+						<?php echo makeLink(h($post['message'])); ?><span class="name">（<?php echo h($post['name']); ?>）</span>
+						[<a href="index.php?res=<?php echo h($post['id']); ?> ">Re</a>]
+						<?php
+						//いいねの管理
+						$likes = $db->prepare('SELECT COUNT(*) AS cnt FROM like_counts WHERE like_members_id=? && posts_id=?');
+						$likes->execute(array($_SESSION['id'], $post['id']));
+						$like = $likes->fetch();
+
+						$like_counts = $db->prepare('SELECT COUNT(*) AS cnt FROM like_counts WHERE posts_id=?');
+						$like_counts->execute(array($post['id']));
+						$like_count = $like_counts->fetch();
+
+						if ($like['cnt'] > 0) :
+						?>
+							[<a href="like.php?id=<?php echo h($post['id']) ?>">
+								<i class="fas fa-heart"></i><?php echo ($like_count['cnt']); ?>
+							</a>]
+						<?php else : ?>
+							[<a href="like.php?id=<?php echo h($post['id']) ?>">
+								<i class="far fa-heart"></i><?php echo ($like_count['cnt']); ?>
+							</a>]
+						<?php endif; ?>
+						[<a href="retweet.php?id=<?php echo ($post['id']); ?>">
+							RT
+							<?php
+							//リツイートの件数
+							$rt_counts = $db->prepare('SELECT COUNT(*) AS cnt FROM posts WHERE rt_post_id=?');
+							$rt_counts->execute(array($post['id']));
+							$rt_count = $rt_counts->fetch();
+							if ($rt_count['cnt'] > 0) {
+								echo ("({$rt_count['cnt']})");
+							}
+							?>
+						</a>]
+					</p>
+					<p class="day"><a href="view.php?id=<?php echo h($post['id']); ?> "><?php echo h($post['created']); ?></a>
+						<?php
+						if ($post['reply_post_id'] > 0) :
+						?>
+							<a href="view.php?id=<?php echo h($post['reply_post_id']); ?>">返信元のメッセージ</a>
+						<?php
+						endif;
+						?>
+						<?php
+						if ($_SESSION['id'] === $post['member_id']) :
+						?>
+							[ <a href="delete.php?id=<?php echo h($post['id']); ?>" style="color:#F33;">削除</a> ]
+						<?php
+						endif;
+						?>
+					</p>
+				</div>
 			<?php
-			if($post['reply_post_id'] > 0):
+			endforeach;
 			?>
-			<a href="view.php?id=<?php echo h($post['reply_post_id']); ?>">返信元のメッセージ</a>
-			<?php
-			endif;
-			?>
-			<?php
-			if ($_SESSION['id'] == $post['member_id']):
-			?>
-			[ <a href="delete.php?id=<?php echo h($post['id']); ?>" style="color:#F33;">削除</a> ]
-			<?php
-			endif;
-			?>
-			</p>
-		</div>
-		<?php
-		endforeach;
-		?>
 			<ul class="paging">
-			<?php
-			if($page > 1){
-			?>
-			<li><a href="index.php?page=<?php print($page - 1); ?>">前のページへ</a></li>
-			<?php
-			} else {
-			?>
-			<li>前のページへ</li>
-			<?php
-			}
-			?>
-			<?php
-			if($page < $maxPage){
-			?>
-			<li><a href="index.php?page=<?php print($page + 1); ?>">次のページへ</a></li>
-			<?php
-			} else {
-			?>
-			<li>次のページへ</li>
-			<?php
-			}
-			?>
+				<?php
+				if ($page > 1) {
+				?>
+					<li><a href="index.php?page=<?php print($page - 1); ?>">前のページへ</a></li>
+				<?php
+				} else {
+				?>
+					<li>前のページへ</li>
+				<?php
+				}
+				?>
+				<?php
+				if ($page < $maxPage) {
+				?>
+					<li><a href="index.php?page=<?php print($page + 1); ?>">次のページへ</a></li>
+				<?php
+				} else {
+				?>
+					<li>次のページへ</li>
+				<?php
+				}
+				?>
 			</ul>
 
-    </div>
+		</div>
 
-</div>
+	</div>
 </body>
+
 </html>
